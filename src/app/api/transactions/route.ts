@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { isLocal } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/server";
+import { localListTransactions } from "@/lib/local/handlers";
 import type { Transaction } from "@/lib/types";
 
 export async function GET() {
+  if (isLocal()) return localListTransactions();
+
   const supabase = createClient();
   const {
     data: { user },

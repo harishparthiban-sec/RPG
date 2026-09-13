@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { isLocal } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/server";
+import { localCompleteQuest } from "@/lib/local/handlers";
 
 type Params = { params: { id: string } };
 
@@ -13,6 +15,8 @@ const FRIENDLY_ERRORS: Record<string, string> = {
 };
 
 export async function POST(_request: Request, { params }: Params) {
+  if (isLocal()) return localCompleteQuest(params.id);
+
   const supabase = createClient();
   const {
     data: { user },

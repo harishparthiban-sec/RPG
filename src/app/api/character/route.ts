@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { isLocal } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/server";
 import { xpForLevel } from "@/lib/progression";
+import { localGetCharacter } from "@/lib/local/handlers";
 import type { Attribute, Character } from "@/lib/types";
 
 const CATEGORY_META: Record<
@@ -35,6 +37,8 @@ const CATEGORY_META: Record<
 };
 
 export async function GET() {
+  if (isLocal()) return localGetCharacter();
+
   const supabase = createClient();
   const {
     data: { user },

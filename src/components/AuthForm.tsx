@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { backendMode } from "@/lib/backend";
 import Button from "@/components/Button";
 
 interface AuthFormProps {
@@ -12,13 +13,14 @@ interface AuthFormProps {
 
 /**
  * Email/password auth form.
- * - Signup also stores a chosen username in user metadata.
- * - Uses the router refresh so middleware picks up the new session cookie.
+ * - Local mode (default, zero config): posts to /api/auth/* (SQLite + sessions).
+ * - Supabase mode: signs in via the Supabase SDK.
  */
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") ?? "/dashboard";
+  const localMode = backendMode() === "local";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,43 +48,87 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      if (isSignup) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              username:
-                username.trim() ||
-                email.split("@")[0].slice(0, 20) ||
-                "Adventurer",
-            },
-          },
+      if (localMode) {
+        const res = await fetch(`/api/auth/${mode}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isSignup ? { email, password, username } : { email, password }
+          ),
         });
-        if (error) throw error;
-        if (data.session) {
-          // Email confirmation disabled — straight to the adventure.
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Authentication failed.");
+        router.replace(nextPath);
+        router.refresh();
+      } else {
+        const supabase = createClient();
+        if (isSignup) {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                username:
+                  username.trim() ||
+                  email.split("@")[0].slice(0, 20) ||
+                  "Adventurer",
+              },
+            },
+          });
+          if (error) throw error;
+          if (data.session) {
+            router.replace(nextPath);
+            router.refresh();
+          } else {
+            setNotice(
+              "Character created! Check your email to confirm your account, then log in."
+            );
+          }
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw error;
           router.replace(nextPath);
           router.refresh();
-        } else {
-          setNotice(
-            "Character created! Check your email to confirm your account, then log in."
-          );
         }
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong.";
+      setError(friendlyAuthError(message));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDemoLogin() {
+    setError(null);
+    setLoading(true);
+    try {
+      if (localMode) {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "demo@liferpg.dev", password: "demo1234" }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Demo login failed.");
+        router.replace(nextPath);
+        router.refresh();
       } else {
+        const supabase = createClient();
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: "demo@liferpg.dev",
+          password: "demo1234",
         });
         if (error) throw error;
         router.replace(nextPath);
         router.refresh();
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong.";
-      setError(friendlyAuthError(message));
+      setError(err instanceof Error ? err.message : "Demo login failed.");
     } finally {
       setLoading(false);
     }
@@ -192,6 +238,22 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </Button>
       </form>
 
+      <div className="my-4 flex items-center gap-3">
+        <div className="rule flex-1" />
+        <span className="text-xs text-parchment-dim">or</span>
+        <div className="rule flex-1" />
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={handleDemoLogin}
+        loading={loading}
+        className="w-full py-2.5"
+      >
+        🎭 Try the demo character
+      </Button>
+
       <div className="rule my-6" />
 
       <p className="text-center text-sm text-parchment-dim">
@@ -225,7 +287,7 @@ function friendlyAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes("invalid login credentials"))
     return "Wrong email or password — check your scroll and try again.";
-  if (m.includes("already registered"))
+  if (m.includes("already has a character") || m.includes("already registered"))
     return "That email already has a character. Try logging in instead.";
   if (m.includes("rate limit"))
     return "Too many attempts. Rest a moment and try again.";

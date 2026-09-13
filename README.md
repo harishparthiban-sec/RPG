@@ -5,8 +5,30 @@ productivity app: your daily tasks become quests, completing them pays XP and
 gold, streaks make you stronger, and the Guild Emporium lets you spend your
 loot on themes, titles, and relics.
 
-> Built with Next.js (App Router), Supabase (Postgres + Auth + RLS), Tailwind
-> CSS, and Framer Motion.
+> Built with Next.js (App Router), SQLite/Supabase, Tailwind CSS, and Framer Motion.
+
+## 🎮 Try it in 30 seconds (zero config)
+
+```bash
+npm install
+npm run dev
+```
+
+That's it. With **no environment variables set**, the app runs in **local mode**:
+
+- A **SQLite database** is created automatically at `.data/liferpg.db` — real
+  server-side persistence (survives restarts; this is *not* localStorage).
+- Accounts use **scrypt-hashed passwords** with HTTP-only session cookies.
+- All game logic (XP curve, streaks, shop economy) runs server-side and is
+  shared with the Supabase engine.
+- A demo account is seeded on first run — click **“🎭 Try the demo
+  character”** on the login page (`demo@liferpg.dev` / `demo1234`).
+
+Want hosted, multi-device, production-grade persistence instead? Follow
+[Supabase setup](#-setup) below and set the two `NEXT_PUBLIC_SUPABASE_*`
+variables — the app auto-detects them and switches to Supabase mode.
+
+---
 
 ---
 
@@ -34,7 +56,7 @@ loot on themes, titles, and relics.
 - **Validation:** Zod (all API inputs)
 - **Deployment:** Vercel-ready
 
-## 🚀 Setup
+## 🚀 Setup (Supabase, for production)
 
 ### 1. Create a Supabase project
 
@@ -93,7 +115,21 @@ level 5, and a purchased relic — great for judges and screenshots.
      never localStorage),
    - The app still works after logging out and back in on another device.
 
-## 🗃 Database Schema
+## 🗃 Two Backends, One Contract
+
+The app supports two interchangeable persistence layers with identical API
+shapes (choose by env, not code changes):
+
+| | Local mode (default) | Supabase mode |
+| --- | --- | --- |
+| **Database** | SQLite (`.data/liferpg.db`) via `node:sqlite` | Postgres (Supabase) |
+| **Auth** | scrypt hashes + server-side sessions in HTTP-only cookies | Supabase Auth |
+| **Game engine** | TypeScript transactions in `src/lib/local/engine.ts` | `security definer` Postgres functions |
+| **Row security** | Ownership enforced in every SQL statement | Row Level Security policies |
+| **Config** | none | `NEXT_PUBLIC_SUPABASE_URL` + anon key |
+
+Both enforce the same rules: server-side XP math, duplicate-completion
+protection, insufficient-gold guards, and per-user data isolation.
 
 ```
 profiles(id → auth.users, username, level, xp, total_xp, gold, title, avatar_theme)

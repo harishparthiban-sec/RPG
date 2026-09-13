@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { backendMode } from "@/lib/backend";
 import type { Character } from "@/lib/types";
 import XPBar from "@/components/XPBar";
 
@@ -43,8 +44,12 @@ export default function AppNav({ character }: AppNavProps) {
   }, [character?.profile.avatar_theme]);
 
   async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    if (backendMode() === "local") {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } else {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    }
     router.replace("/login");
     router.refresh();
   }

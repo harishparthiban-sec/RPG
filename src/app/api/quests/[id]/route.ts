@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isLocal } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/server";
 import { rewardsFor } from "@/lib/progression";
+import { localUpdateQuest, localDeleteQuest } from "@/lib/local/handlers";
 import type { Quest } from "@/lib/types";
 
 const UpdateQuest = z.object({
@@ -33,6 +35,16 @@ function mapQuest(row: Record<string, unknown>): Quest {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
+  if (isLocal()) {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    return localUpdateQuest(params.id, body);
+  }
+
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -79,6 +91,8 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
+  if (isLocal()) return localDeleteQuest(params.id);
+
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {

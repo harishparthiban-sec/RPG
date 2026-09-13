@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isLocal } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/server";
 import { SHOP_ITEMS } from "@/lib/shop";
+import { localGetShop, localPurchase, localEquip } from "@/lib/local/handlers";
 
 const PurchaseSchema = z.object({ item_key: z.string().min(1).max(60) });
 
@@ -14,6 +16,8 @@ const FRIENDLY_ERRORS: Record<string, string> = {
 };
 
 export async function GET() {
+  if (isLocal()) return localGetShop();
+
   const supabase = createClient();
   const {
     data: { user },
@@ -40,6 +44,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (isLocal()) {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    return localPurchase(body);
+  }
+
   const supabase = createClient();
   const {
     data: { user },
@@ -78,6 +92,16 @@ export async function POST(request: Request) {
 const EquipSchema = PurchaseSchema;
 
 export async function PATCH(request: Request) {
+  if (isLocal()) {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    return localEquip(body);
+  }
+
   const supabase = createClient();
   const {
     data: { user },

@@ -27,6 +27,9 @@ yarn-error.log*
 .env*.local
 .env.production
 
+# local mode database
+.data/
+
 # vercel
 .vercel
 
