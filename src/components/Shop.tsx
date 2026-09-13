@@ -130,12 +130,16 @@ export default function Shop() {
             Trade quest gold for glory. Purchases are permanent — choose boldly.
           </p>
         </div>
-        <p
-          className="rounded-xl border border-accent/40 accent-soft-bg px-4 py-2 font-display text-lg font-bold text-accent"
+        <motion.p
+          key={state.gold}
+          initial={{ scale: 1.12 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          className="rounded-xl border border-accent/40 accent-soft-bg px-4 py-2 font-display text-lg font-bold text-accent shadow-glow"
           aria-live="polite"
         >
           🪙 {state.gold} gold
-        </p>
+        </motion.p>
       </div>
 
       {KIND_ORDER.map((kind) => {
@@ -193,37 +197,68 @@ function ItemCard({
   onBuy: () => void;
   onEquip: () => void;
 }) {
+  // Price-tier coloring: budget / mid / premium / crown.
+  const tierColor =
+    item.price >= 300 ? "#f59e0b" : item.price >= 200 ? "#a78bfa" : item.price >= 120 ? "#38bdf8" : "#10b981";
+
   return (
     <motion.article
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04 }}
-      className={`panel panel-hover flex flex-col p-5 ${
+      transition={{ delay: index * 0.05, type: "spring", stiffness: 160, damping: 20 }}
+      whileHover={{ y: -4 }}
+      className={`panel panel-hover relative flex flex-col overflow-hidden p-5 ${
         equipped ? "border-accent/60 shadow-glow" : ""
       }`}
+      style={{ borderLeft: `3px solid ${equipped ? "var(--accent)" : `${tierColor}55`}` }}
     >
-      <div className="flex items-start justify-between">
-        <span aria-hidden className="text-3xl">
+      {/* premium shimmer on expensive actives */}
+      {item.price >= 200 && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: `linear-gradient(100deg, transparent 30%, ${tierColor}14 50%, transparent 70%)`,
+            backgroundSize: "200% 100%",
+          }}
+          animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
+          transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+        />
+      )}
+
+      <div className="relative flex items-start justify-between">
+        <motion.span
+          aria-hidden
+          className="text-3xl"
+          whileHover={{ scale: 1.2, rotate: -8 }}
+        >
           {item.icon}
-        </span>
+        </motion.span>
         {equipped && (
-          <span className="rounded-full accent-soft-bg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
-            Equipped
-          </span>
+          <motion.span
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ repeat: Infinity, duration: 1.8 }}
+            className="rounded-full accent-soft-bg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent"
+          >
+            ✦ Equipped
+          </motion.span>
         )}
       </div>
-      <h3 className="mt-3 font-display font-bold text-parchment">{item.name}</h3>
-      <p className="mt-1 flex-1 text-sm text-parchment-dim">
+      <h3 className="relative mt-3 font-display font-bold text-parchment">{item.name}</h3>
+      <p className="relative mt-1 flex-1 text-sm text-parchment-dim">
         {item.description}
       </p>
-      <div className="mt-4 flex items-center justify-between">
-        <span
+      <div className="relative mt-4 flex items-center justify-between">
+        <motion.span
+          key={`${item.key}-${owned}-${affordable}`}
+          initial={{ scale: 1.15 }}
+          animate={{ scale: 1 }}
           className={`font-mono text-sm font-bold ${
             affordable || owned ? "text-accent" : "text-parchment-dim"
           }`}
         >
           🪙 {item.price}
-        </span>
+        </motion.span>
         {owned ? (
           item.kind === "relic" ? (
             <span className="text-xs font-semibold text-parchment-dim">

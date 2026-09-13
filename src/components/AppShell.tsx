@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useRouter } from "next/navigation";
 import type { Character } from "@/lib/types";
 import AppNav from "@/components/AppNav";
+import EmberField from "@/components/EmberField";
 import { ToastProvider } from "@/components/Toast";
 
 interface AppShellState {
@@ -58,6 +59,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <AppShellContext.Provider value={{ character, refreshCharacter, applyProfile }}>
+        <EmberField />
+        <div className="relative z-10">
         <AppNav character={character} />
         <main
           id="main-content"
@@ -73,6 +76,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
           {children}
         </main>
+        </div>
       </AppShellContext.Provider>
     </ToastProvider>
   );

@@ -31,12 +31,12 @@ const CATEGORY_META: Record<
 
 const DIFFICULTY_META: Record<
   Difficulty,
-  { label: string; stars: string }
+  { label: string; stars: string; color: string; glow: string }
 > = {
-  common: { label: "Common", stars: "★" },
-  rare: { label: "Rare", stars: "★★" },
-  epic: { label: "Epic", stars: "★★★" },
-  legendary: { label: "Legendary", stars: "★★★★" },
+  common: { label: "Common", stars: "★", color: "#a89f8d", glow: "rgba(168,159,141,0.35)" },
+  rare: { label: "Rare", stars: "★★", color: "#38bdf8", glow: "rgba(56,189,248,0.35)" },
+  epic: { label: "Epic", stars: "★★★", color: "#a78bfa", glow: "rgba(167,139,250,0.4)" },
+  legendary: { label: "Legendary", stars: "★★★★", color: "#f59e0b", glow: "rgba(245,158,11,0.45)" },
 };
 
 type Filter = "active" | "completed" | "all";
@@ -254,13 +254,20 @@ export default function QuestBoard() {
             role="tab"
             aria-selected={filter === f}
             onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
+            className={`relative rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
               filter === f
-                ? "bg-accent text-night-950"
+                ? "text-night-950"
                 : "text-parchment-dim hover:text-parchment"
             }`}
           >
-            {f}
+            {filter === f && (
+              <motion.span
+                layoutId="quest-filter-pill"
+                className="absolute inset-0 rounded-lg bg-accent"
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              />
+            )}
+            <span className="relative">{f}</span>
           </button>
         ))}
       </div>
@@ -351,34 +358,90 @@ function QuestRow({
 }) {
   const cat = CATEGORY_META[quest.category];
   const diff = DIFFICULTY_META[quest.difficulty];
+  const [burst, setBurst] = useState(false);
+
+  function handleComplete() {
+    if (quest.completed || completing) return;
+    setBurst(true);
+    window.setTimeout(() => setBurst(false), 900);
+    onComplete();
+  }
 
   return (
     <div
-      className={`panel panel-hover flex items-center gap-3 p-4 sm:gap-4 ${
-        quest.completed ? "opacity-60" : ""
-      }`}
+      className="panel panel-hover relative overflow-hidden flex items-center gap-3 p-4 sm:gap-4"
+      style={
+        quest.completed
+          ? { opacity: 0.55 }
+          : { borderLeft: `3px solid ${diff.color}`, boxShadow: `0 4px 24px rgba(0,0,0,0.45), inset 0 0 24px ${diff.glow.replace("0.4", "0.06").replace("0.45", "0.06").replace("0.35", "0.05")}` }
+      }
     >
-      {/* Complete toggle */}
-      <button
+      {/* rarity shimmer for legendary/epic actives */}
+      {!quest.completed && (quest.difficulty === "legendary" || quest.difficulty === "epic") && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: `linear-gradient(100deg, transparent 20%, ${diff.glow} 50%, transparent 80%)`,
+            backgroundSize: "200% 100%",
+          }}
+          animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
+          transition={{ repeat: Infinity, duration: 2.6, ease: "linear" }}
+        />
+      )}
+
+      {/* completion burst */}
+      {burst && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-10">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <motion.span
+              key={i}
+              className="absolute left-6 top-1/2 h-1.5 w-1.5 rounded-full"
+              style={{ background: i % 2 ? "#f59e0b" : "#22d3ee" }}
+              initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+              animate={{
+                x: Math.cos((i / 10) * Math.PI * 2) * 46,
+                y: Math.sin((i / 10) * Math.PI * 2) * 46,
+                opacity: 0,
+                scale: 0.3,
+              }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Complete toggle with spring check */}
+      <motion.button
         type="button"
-        onClick={onComplete}
+        onClick={handleComplete}
         disabled={quest.completed || completing}
+        whileHover={!quest.completed ? { scale: 1.12 } : undefined}
+        whileTap={!quest.completed ? { scale: 0.9 } : undefined}
         aria-label={
           quest.completed
             ? `“${quest.title}” is completed`
             : `Complete quest: ${quest.title}`
         }
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 transition ${
+        className={`z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 ${
           quest.completed
             ? "border-accent bg-accent text-night-950"
             : "border-night-600 hover:border-accent"
         }`}
       >
-        {quest.completed ? "✓" : ""}
-      </button>
+        {quest.completed && (
+          <motion.span
+            initial={{ scale: 0, rotate: -90 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          >
+            ✓
+          </motion.span>
+        )}
+      </motion.button>
 
       {/* Body */}
-      <div className="min-w-0 flex-1">
+      <div className="z-10 min-w-0 flex-1">
         <p
           className={`truncate font-semibold ${
             quest.completed ? "text-parchment-dim line-through" : "text-parchment"
@@ -395,21 +458,19 @@ function QuestRow({
             {cat.label}
           </span>
           <span
-            className="text-accent"
+            style={{ color: diff.color }}
             aria-label={`Difficulty: ${diff.label}`}
             title={diff.label}
           >
             {diff.stars}
           </span>
-          <span>
-            +{quest.xp_reward} XP · +{quest.gold_reward} 🪙
-          </span>
+          <span className="font-mono">+{quest.xp_reward} XP · +{quest.gold_reward} 🪙</span>
         </div>
       </div>
 
       {/* Actions */}
       {!quest.completed && (
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="z-10 flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             onClick={onEdit}
