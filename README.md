@@ -104,6 +104,13 @@ level 5, and a purchased relic — great for judges and screenshots.
 
 ## 🚢 Deploy to Vercel
 
+> **Important:** the Next.js app lives in the `life-rpg/` subfolder of this
+> repo. On Vercel, set **Root Directory → `life-rpg`** in
+> Project → Settings → General. `vercel.json` in that folder pins the rest
+> (framework: Next.js, `npm install`, `next build`). If Vercel complains about
+> a missing `public` directory, it is treating the app as a static site —
+> setting Root Directory + Framework preset to *Next.js* fixes it.
+
 1. Push this repo to GitHub (public).
 2. [Import it on Vercel](https://vercel.com/new) — Next.js is auto-detected.
 3. Add the environment variables from `.env.example` in
