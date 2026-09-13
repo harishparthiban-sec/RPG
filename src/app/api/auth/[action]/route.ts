@@ -3,20 +3,26 @@ import { isLocal } from "@/lib/backend";
 import { handleSignup, handleLogin, handleLogout } from "@/lib/local/handlers";
 
 export async function POST(request: Request) {
-  const { pathname } = new URL(request.url);
-  const action = pathname.split("/").pop();
+  try {
+    const { pathname } = new URL(request.url);
+    const action = pathname.split("/").pop();
 
-  if (isLocal()) {
-    if (action === "signup") return handleSignup(request);
-    if (action === "login") return handleLogin(request);
-    if (action === "logout") return handleLogout();
-    return NextResponse.json({ error: "Unknown action." }, { status: 404 });
+    if (isLocal()) {
+      if (action === "signup") return handleSignup(request);
+      if (action === "login") return handleLogin(request);
+      if (action === "logout") return handleLogout();
+      return NextResponse.json({ error: "Unknown action." }, { status: 404 });
+    }
+
+    // ── Supabase mode: the client SDK talks to Supabase directly; the API only
+    //    exists for parity. Return a hint so a misrouted call is obvious.
+    return NextResponse.json(
+      { error: "Use the Supabase client SDK for auth in this mode." },
+      { status: 501 }
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal server error.";
+    console.error("[auth route]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  // ── Supabase mode: the client SDK talks to Supabase directly; the API only
-  //    exists for parity. Return a hint so a misrouted call is obvious.
-  return NextResponse.json(
-    { error: "Use the Supabase client SDK for auth in this mode." },
-    { status: 501 }
-  );
 }
